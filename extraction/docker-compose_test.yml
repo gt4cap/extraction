@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  trivial_task:
+    image: python:latest
+    volumes:
+            - /home/eouser/jrc-dias/scripts:/usr/src/app
+    deploy:
+      replicas: 4
+    command: python generateStuff.py
+
