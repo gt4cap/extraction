@@ -1,0 +1,19 @@
+{
+	"database": {
+		"connection": {
+			"host": "172.17.0.2",
+			"dbname": "postgres",
+			"dbuser": "postgres",
+			"dbpasswd": "lbst_DK_20220202!",
+			"port": 5432
+		},
+		"tables": {
+			"aoi_table": "aois",
+			"catalog_table": "dias_catalogue"
+		},
+		"args": {
+			"aoi_field": "name"
+		}
+	}
+}
+

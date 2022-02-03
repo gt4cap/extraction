@@ -42,8 +42,8 @@ curs = conn.cursor()
 aoi_name = sys.argv[1]
 startDate = '{}T00:00:00Z'.format(sys.argv[2])
 endDate = '{}T00:00:00Z'.format(sys.argv[3])
-ptype = sys.argv[4]   # LEVEL2A or LEVEL2AP
-card = sys.argv[5]    # s2
+ptype = sys.argv[4]   # CARD-BS or CARD-COH6
+card = sys.argv[5]    # bs or c6
 
 aoi_query = f"select st_astext(wkb_geometry) from {dbconfig['tables']['aoi_table']} \
   where {dbconfig['args']['aoi_field']} = '{aoi_name}'"
