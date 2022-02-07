@@ -4,7 +4,7 @@
             "host": "185.52.195.114",
             "dbname": "postgres",
             "dbuser": "postgres",
-            "dbpasswd": "lbst_DK_20220202!",
+            "dbpasswd": "YOURPASSWORD",
             "port": 11039 
         },
         "tables": {
