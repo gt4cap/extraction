@@ -143,7 +143,7 @@ psql -U postgres
 drop schema tiger cascade;
 drop schema tiger_data cascade;
 drop schema topology cascade;
-alter role postgres with password 'lbst_DK_20220202!';
+alter role postgres with password 'YOURPASSWORD';
 ```
 
 One can now communicate with the postgresql database from external machines, but only with the password.
@@ -155,7 +155,7 @@ Upload the shape set into dk2021 table. This can be done from a remote machine. 
 Test with QGIS connection to database.
 
 ```bash
-ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=postgres password=lbst_DK_20220202!" -nln dk2021 -a_srs EPSG:25832 -nlt PROMOTE_TO_MULTI Endelige_marker_til_DHI_2021.sh
+ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=postgres password=YOURPASSWORD" -nln dk2021 -a_srs EPSG:25832 -nlt PROMOTE_TO_MULTI Endelige_marker_til_DHI_2021.sh
 ```
 
 ### Set up required tables
@@ -251,7 +251,7 @@ In the folder cbm/catalog update the cat_config.json as follows (using the docke
 			"host": "172.17.0.2",
 			"dbname": "postgres",
 			"dbuser": "postgres",
-			"dbpasswd": "lbst_DK_20220202!",
+			"dbpasswd": "YOURPASSWORD",
 			"port": 5432
 		},
 		"tables": {
@@ -342,7 +342,7 @@ Executables takes their parameters from a runtime configuration file. Note that 
             "host": "185.52.195.114",
             "dbname": "postgres",
             "dbuser": "postgres",
-            "dbpasswd": "lbst_DK_20220202!",
+            "dbpasswd": "YOURPASSWORD",
             "port": 11039
         },
         "tables": {
