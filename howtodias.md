@@ -240,7 +240,7 @@ git pull origin main
 
 ### Transfer records from finder.creodias.eu
 
-The metadata of Sentinel CARD needs to be transcribed into the dias_catalogue table. This is done via scripts that parse the XML output of the OpenSearch requests to (the CREODIAS catalog)[https://finder.creodias.eu] for the respective S-2 and S-1 data sets.
+The metadata of Sentinel CARD needs to be transcribed into the dias_catalogue table. This is done via scripts that parse the XML output of the OpenSearch requests to [the CREODIAS catalog](https://finder.creodias.eu) for the respective S-2 and S-1 data sets.
 
 In the folder cbm/catalog update the cat_config.json as follows (using the docker network to connect to the container):
 
@@ -378,7 +378,7 @@ docker run -it --rm -v`pwd`:/usr/src/app -v/eodata:/eodata -v/1/DIAS:/1/DIAS gle
 Note that **BOTH** the /eodata and /1/DIAS volumes need to be mounted by the container. The latter is a local cache where all data read from S3 is stored. This needs to be cleared after each run (done inside the code).
 
 Extraction manipulates the status field of the dias_catalogue, as follows:
-- After [catalogue transfer](#Transfer-records-from-finder.creodias.eu) all new images are marked with status 'ingested'
+- After [catalogue transfer](#Transfer-records-from-findercreodiaseu) all new images are marked with status 'ingested'
 - At the start of extraction an image candidate will be marked as 'inprogress'
 - If no parcels are found in the image footprint, status is changed to 'No parcels'
 - If extraction fails (for a variety of reasons) status is changed to a meaningful error status (e.g. 'No in db', 'Rio error', 'Parcel SQL') which can be traced to the relevant code fragment.
@@ -438,7 +438,7 @@ docker stack rm scl
 
 ## python_on_whales runs
 
-A solution to the stack termination is to integrate stack deployment with logic that can tear down the stack after checking 'ingested' status in the database. This can, in principle, be done in the bash shell (e.g. running a background process). A slightly more elegant solution is with python_on_whales, which control docker processes from within python.
+A solution to the stack termination is to integrate stack deployment with logic that can tear down the stack after checking 'ingested' status in the database. This can, in principle, be done in the bash shell (e.g. running a background process). A slightly more elegant solution is with python_on_whales, which controls docker processes from within python.
 
 A slight drawback is the need to install some python modules on the VM:
 
@@ -449,7 +449,7 @@ pip3 install psycopg2-binary
 pip3 install python_on_whales
 ```
 
-The script ```pow_extract_s2.py``` runs the Sentinel-2 L2A extraction in a series of 3 stack deployments. The script checks the database for 'ingested' candidates at regular intervals and removes the relevant stack when exhausted. For successive runs, it will set the 'extracted' candidates to 'ingested' are starts the next stack.
+The script ```pow_extract_s2.py``` runs the Sentinel-2 L2A extraction in a series of 3 stack deployments. The script checks the database for 'ingested' candidates at regular intervals and removes the relevant stack when exhausted. For successive runs, it will set the 'extracted' candidates to 'ingested' and starts the next stack.
 
 Run as a background process (so you can log out of the VM):
 
