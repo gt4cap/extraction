@@ -1,0 +1,27 @@
+{
+    "database": {
+        "connection": {
+            "host": "185.52.195.114",
+            "dbname": "postgres",
+            "dbuser": "postgres",
+            "dbpasswd": "lbst_DK_20220202!",
+            "port": 11039 
+        },
+        "tables": {
+            "aoi_table": "public.aois",
+            "parcel_table": "public.dk2021",
+            "catalog_table": "public.dias_catalogue",
+            "sigs_table": "public.sigs",
+	    "hists_table": "public.hists"
+        },
+        "args": {
+            "aoi_field": "name",
+            "name": "dk2021",
+            "startdate": "2020-10-01",
+            "enddate": "2022-01-01"
+        }
+    },
+    "docker": {
+        "masterip": "192.168.0.8"
+    }
+}

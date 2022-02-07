@@ -1,16 +1,12 @@
 version: '3.5'
 services:
   vector_extractor:
-    image: glemoine/dias_numba_py:latest
+    image: glemoine62/dias_numba_py:latest
     volumes:
-            - /home/eouser/jrc-dias/scripts:/usr/src/app
+            - /home/eouser/cbm/extraction:/usr/src/app
             - /eodata:/eodata
             - /1/DIAS:/1/DIAS
-    networks:
-      - overnet
     deploy:
       replicas: 4
-    command: python factoredMountedExtraction.py s2 -1
+    command: python factoredWindowedExtraction.py s2 -1
 
-networks:
-  overnet:
