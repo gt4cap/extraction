@@ -89,7 +89,7 @@ def indexRasterStats(oid, reference, bands, card):
     print(f"full image dimension {imgwidth}*{imgheight} requires {4*imgwidth*imgheight/(1024*1024)} MB")    
 
     # 2. database configuration parsing from json
-    with open('db_config_sigs.json', 'r') as f:
+    with open('db_config.json', 'r') as f:
         dbconfig = json.load(f)
     dbconfig = dbconfig['database']
 
@@ -235,7 +235,7 @@ def indexRasterStats(oid, reference, bands, card):
                 s_buf.seek(0)
                 outcurs = outconn.cursor()
                 try:
-                    outcurs.copy_from(s_buf, dbconfig['tables']['results_table'], columns = tuple(df_columns), sep = ',')
+                    outcurs.copy_from(s_buf, dbconfig['tables']['sigs_table'], columns = tuple(df_columns), sep = ',')
                     outconn.commit()
                 except psycopg2.IntegrityError as e:
                     print("IntegrityError")
@@ -275,7 +275,7 @@ def indexRasterMeans(v):
     print(f"full image dimension {imgwidth}*{imgheight} requires {4*imgwidth*imgheight/(1024*1024)} MB")    
 
     # 2. database configuration parsing from json
-    with open('db_config_vrts.json', 'r') as f:
+    with open('db_config.json', 'r') as f:
         dbconfig = json.load(f)
     dbconfig = dbconfig['database']
 
@@ -409,7 +409,7 @@ def indexRasterMeans(v):
                 s_buf.seek(0)
                 outcurs = outconn.cursor()
                 try:
-                    outcurs.copy_from(s_buf, dbconfig['tables']['results_table'], columns = tuple(df_columns), sep = ',')
+                    outcurs.copy_from(s_buf, dbconfig['tables']['sigs_table'], columns = tuple(df_columns), sep = ',')
                     outconn.commit()
                 except psycopg2.IntegrityError as e:
                     print("IntegrityError")

@@ -58,7 +58,7 @@ def indexRasterHistogram(refs):
     nodata = profile['nodata']
 
     # 2. database configuration parsing from json
-    with open('db_config_hists.json', 'r') as f:
+    with open('db_config.json', 'r') as f:
         dbconfig = json.load(f)
     dbconfig = dbconfig['database']
 
@@ -132,7 +132,7 @@ def indexRasterHistogram(refs):
                     else:
                         print("Empty dict")
 
-        insert_stmt = f"insert into {dbconfig['tables']['results_table']}  (pid, obsid, hist) values (%(pid)s, %(obsid)s, %(hist)s);"
+        insert_stmt = f"insert into {dbconfig['tables']['hists_table']}  (pid, obsid, hist) values (%(pid)s, %(obsid)s, %(hist)s);"
 
         if len(records) > 0:
             try:
