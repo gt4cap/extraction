@@ -8,7 +8,7 @@ from . import updateImageStatus as uis
 
 def findImageCandidate(cardtype):
     # Spatial database details
-    with open('db_config_sigs.json', 'r') as f:
+    with open('db_config.json', 'r') as f:
         dbconfig = json.load(f)
     dbconfig = dbconfig['database']
 
@@ -27,6 +27,7 @@ def findImageCandidate(cardtype):
     and obstime between '{dbconfig['args']['startdate']}' and '{dbconfig['args']['enddate']}'\
     and status ='ingested'\
     and card='{cardtype}' order by obstime asc limit 1"
+    #print(imagesql)
     with inconn:
         with inconn.cursor() as trans_cur:
             trans_cur.execute(imagesql)
