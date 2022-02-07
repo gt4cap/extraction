@@ -6,7 +6,7 @@ import psycopg2
 
 def updateImageStatus(oid, new_status, current_status):
     # Spatial database details
-    with open('db_config_sigs.json', 'r') as f:
+    with open('db_config.json', 'r') as f:
         dbconfig = json.load(f)
     dbconfig = dbconfig['database']
 
