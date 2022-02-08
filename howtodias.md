@@ -369,11 +369,13 @@ For Sentinel-2 L2A, the order of execution is to first extract the SCL histogram
 
 The order of the Sentinel-1 CARD-BS and CARD-COH6 runs is not important.
 
-A single run is executed as follows:
+A single histogram extraction run is executed as follows:
 
 ```
 docker run -it --rm -v`pwd`:/usr/src/app -v/eodata:/eodata -v/1/DIAS:/1/DIAS glemoine62/dias_numba_py python factoredWindowedExtraction.py s2 -1
 ```
+
+For the 10 m band run, change the argument -1 to 10, for 20 m band runs, change to 20.
 
 Note that **BOTH** the /eodata and /1/DIAS volumes need to be mounted by the container. The latter is a local cache where all data read from S3 is stored. This needs to be cleared after each run (done inside the code).
 
@@ -438,7 +440,7 @@ docker stack rm scl
 
 ## python_on_whales runs
 
-A solution to the stack termination is to integrate stack deployment with logic that can tear down the stack after checking 'ingested' status in the database. This can, in principle, be done in the bash shell (e.g. running a background process). A slightly more elegant solution is with python_on_whales, which controls docker processes from within python.
+A solution to the stack termination issue is to integrate stack deployment with logic that can tear down the stack after checking 'ingested' status in the database. This can, in principle, be done in the bash shell (e.g. running a background process). A slightly more elegant solution is with python_on_whales, which controls docker processes from within python.
 
 A slight drawback is the need to install some python modules on the VM:
 
@@ -459,18 +461,65 @@ nohup python pow_extract_s2.py &
 
 The ```pow_extract_s1.py``` is the equivalent for Sentinel-1 CARD extraction.
 
-## Post extraction
+## Post extraction checks
 
-Extraction may run for several days, depending on archive size and number of parcel features. At the end of the extraction run, some images may have been left in 'inprogess' status. This may be because of a dropped database connection, or for some other reason.
+Extraction may run for several days, depending on archive size and number of parcel features. At the end of the extraction run, some images may have been left in 'inprogress' status. This may be because of a dropped database connection, or for some other reason.
 
-Check which records are affected and launch some  [individual runs](#Single-runs) to remedy this.
+The 'inprogress' status may have been reached after a subset of parcels were already extracted. Thus, it is best to clean out the hists and sigs tables and redo the extraction. Save the 'inprogress' records to a separate table.
 
+```postgresql
+create table faulties as (select id from dias_catalogue where status = 'inprogress' and card ='s2');
 
-# Analysis in JHub
+delete from hists where obsid in (select id from faulties);
+delete from sigs where obsid in (select id from faulties);
+update dias_catalogue set status = 'ingested' where status = 'inprogress';
+```
 
-# Connecting to RESTful
+**DO NOT USE** the pow_extract_s2.py script, because it will reset ALL extracted status to ingested for the second stack run!!!
+
+Instead, run as many [individual runs](#Single-runs) as the number of 'inprogress' records. Use a bash script, if needed. Start with the SCL extraction to histograms. After it has finished, reset:
+
+```postgresql
+update dias_catalogue set status = 'ingested' where id in (select id from faulties)
+```
+
+Run the extraction for 10 m bands, reset again, run the 20 m bands and wrap up:
+
+```postgresql
+drop table faulties;
+```
+
+## Vacuum and cluster
+
+The hists and sigs hold many millions of records after extraction. Both are indexed on the parcel id (pid) and observation id (obsid). The sigs table is also indexed on band. Since the typical access pattern is expected to be based on the parcel id, the tables are clustered on the pid index.
+
+```postgresql
+vacuum analyze hists;
+cluster hists using (hists_pidx);
+vacuum analyze sigs;
+cluster sigs using (sigs_pidx)
+```
+
+This will take considerable time. Clustering can only be performed if sufficient disk space is available as each table is rewritten in its entirety.
+
 
 # Maintenance
+
+## Deleting fully cloud covered parcel observations
+
+If database size is an issue, one easy reduction step is to delete all sigs records for which parcels are fully cloud covered (SCL value 9):
+
+```postgresql
+with cnt_keys as (select pid, obsid, (select count(*) from jsonb_object_keys(hist::jsonb)) from hists where hist::jsonb ? '9')  select * into cloudy from cnt_keys where count = 1;
+SELECT 49879887
+postgres=# select count(*) from hists;
+   count   
+-----------
+ 131393590
+```
+
+i.e. almost 38% of all sigs records can be removed (~ 21 GB) without significant loss of information (the cloud cover information is not removed).
+
 
 ## table backup with pg_dump
 ## adding bands and/or indices
