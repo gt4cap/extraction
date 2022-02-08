@@ -184,11 +184,11 @@ CREATE TABLE public.dias_catalogue (
 );
 
 ALTER TABLE ONLY public.dias_catalogue
-    ADD CONSTRAINT dias_catalogue_pkey1 PRIMARY KEY (id);
+    ADD CONSTRAINT dias_catalogue_pkey PRIMARY KEY (id);
 
-CREATE INDEX dias_catalogue_footprint_idx ON public.dias_catalogue_eosc2019 USING gist (footprint);
+CREATE INDEX dias_catalogue_footprint_idx ON public.dias_catalogue USING gist (footprint);
 
-CREATE UNIQUE INDEX dias_catalogue_reference_idx ON public.dias_catalogue_eosc2019 USING btree (reference);
+CREATE UNIQUE INDEX dias_catalogue_reference_idx ON public.dias_catalogue USING btree (reference);
 --
 
 CREATE TABLE public.sigs (
