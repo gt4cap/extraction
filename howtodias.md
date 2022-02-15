@@ -1,7 +1,15 @@
 # Onboarding a Member State on DIAS
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
+![Maintainer](https://img.shields.io/badge/maintainer-Guido_Lemoine-blue)
+
+<!-- [![GitHub release](https://img.shields.io/github/release/Naereen/StrapDown.js.svg)](https://github.com/gt4cap/howtodias.md/releases/)
+[![GitHub latest commit](https://badgen.net/github/last-commit/Naereen/Strapdown.js)](https://github.com/gt4cap/howtodias.md/commit/)
+-->
+
+Version 1.1, 15 February 2022
 
 ## Account set up
-An Onboarding MS needs a DIAS account. For the account, a contact person (name, email, phone) has to be identified.
+An Onboarding Member State needs a DIAS account. For the account, a contact person (name, email, phone) has to be identified.
 
 ESA is asked to forward these contact details to the DIAS provider with the explicit authorization to activate the account.
 
@@ -13,21 +21,21 @@ A tenant VM is not set up with account creation. This needs to be done via the [
 
 If done by MS (see [Essential steps](#essential-steps) below):
 
-For hands-on support to the Member State, JRC needs to have ssh access to the account. JRC provides the public key that is used on it's own DIAS resources.
-The public key needs to be appended to the ~/.ssh/authorized_keys file on the MS VM.
-JRC to confirm ssh access.
+- For hands-on support to the Member State, JRC needs to have ssh access to the account. JRC provides the public key that is used on it's own DIAS resources.
+- The public key needs to be appended to the ~/.ssh/authorized_keys file on the MS VM.
+- JRC to confirm ssh access.
 
-**Alternative**: JRC to set up VM with MS credentials
+**Alternative**: JRC to set up VM with MS credentials.
 
 ### Essential steps
 
-Create SSH key pair during VM creation. Copy the **PRIVATE** key to a local ~/.ssh/keys/{name}.key file (chmod 0600 {name}.key). The PUBLIC key will be copied to the new VM instance.
+Create SSH key pair during VM creation. Copy the **PRIVATE** key to a local ```~/.ssh/keys/{name}.key``` file (```chmod 0600 {name}.key```). The PUBLIC key will be copied to the new VM instance.
 
 Select a machine type that can handle extraction on a single box (KISS). An 8 vCPU with 16 GB RAM is OK to run parallel extraction for cases with up to 1 million features, parallel to the database server.
 
 Add a volume (for db). See detailed instructions on [the CREODIAS FAQ page](https://creodias.eu/-/how-to-attach-a-volume-to-vm-2-tb-linux-?inheritRedirect=true&redirect=%2Ffaq-data-volume).
 
-The VM needs to be created with sufficient disk space to run the database. Rule of thumb: 100 GB disk space for 1 Million parcels for one year volume (all S1 and S2)
+The VM needs to be created with sufficient disk space to run the database. Rule of thumb: 200 GB disk space for 1 Million parcels for one year volume (all S1 and S2).
 
 We assume mount volume is at /data
 
@@ -42,11 +50,11 @@ sudo apt update
 sudo apt upgrade -y
 sudo apt install vim
 ```
-(cannot be run unattended if kernel update!!)
+(cannot be run unattended if kernel update!!).
 
 vi is needed for minimal text file editing.
 
-Docker install (also on any VM if parallel work in expected)
+Docker install (also on any VM if parallel work in expected):
 
 ```bash
 sudo apt install docker.io
@@ -73,6 +81,7 @@ Add the following in daemon.json
   "data-root": "/data/docker"
 }
 ```
+
 and
 
 ```bash
@@ -80,6 +89,7 @@ sudo rsync -aP /var/lib/docker/ /data/docker
 sudo mv /var/lib/docker /var/lib/docker.old
 sudo service docker start
 ```
+
 Check whether docker runs OK. If so:
 
 ```bash
@@ -100,7 +110,7 @@ docker run --name ams_db -d --restart always -v database:/var/lib/postgresql --s
 
 The port redirect (-p 11039:5432) uses the port that was opened at VM installation.
 
-You need to login into the new container to set the ```pg_hba.conf``` to allow connections via the network. You are sudo inside the container
+You need to login into the new container to set the ```pg_hba.conf``` to allow connections via the network. You are sudo inside the container.
 
 ```bash
 docker exec -it ams_db /bin/bash
@@ -114,7 +124,7 @@ vi /var/lib/postgresql/data/pg_hba.conf
 Change all permissions from ```trust``` to ```md5```, except the local ones.
 Network connection already set to '\*' in ```postgresql.conf```.
 
-Exit the container and commit to an updated image (so as to not loose the updates)
+Exit the container and commit to an updated image (so as to not loose the updates).
 
 On the host VM, the following sequence will:
 - list the running containers (```mdillon/postgis``` is in daemon mode)
@@ -140,9 +150,7 @@ Since the VM itself has no postgresql clients installed (yet), access the databa
 ```bash
 docker exec -it ams_db /bin/bash
 psql -U postgres
-drop schema tiger cascade;
-drop schema tiger_data cascade;
-drop schema topology cascade;
+drop extension tiger;
 alter role postgres with password 'YOURPASSWORD';
 ```
 
@@ -165,7 +173,7 @@ The aois table holds the definition of the Area Of Interest, which is the outlin
 ```postgresql
 create table aois (name text);
 select addgeometrycolumn('aois', 'wkb_geometry', 4326, 'POLYGON', 2);
-insert into aois values ('dk2021', (select st_transform(st_extent(wkb_geometry), 4326) from dk2021));
+insert into aois values ('dk2021', (select st_transform(st_setsrid(st_extent(wkb_geometry), 25832), 4326) from dk2021));
 ```
 
 Metadata for CARD data needs to be transferred from the DIAS catalog to the database. The cross-section of parcels and CARD data sets is stored in the hists table (cloud-occurence statistics for Sentinel-2 L2A) and sigs table (all bands extracts for Sentinel-2 L2A, Sentinel-1 CARD-BS and Sentinel-1 CARD-COH6).
@@ -189,7 +197,6 @@ ALTER TABLE ONLY public.dias_catalogue
 CREATE INDEX dias_catalogue_footprint_idx ON public.dias_catalogue USING gist (footprint);
 
 CREATE UNIQUE INDEX dias_catalogue_reference_idx ON public.dias_catalogue USING btree (reference);
---
 
 CREATE TABLE public.sigs (
     pid integer,
@@ -218,7 +225,7 @@ CREATE INDEX hists_pidx ON public.hists USING btree (pid);
 
 ### Pull dias_numba_py
 
-All python dependencies for fast extraction are packaged in the glemoine62/dias_numba_py docker image. Thus, all extraction routine will be run from within a derived container.
+All python dependencies for fast extraction are packaged in the ```glemoine62/dias_numba_py``` docker image. Thus, all extraction routine will be run from within a derived container.
 
 ```bash
 docker pull glemoine62/dias_numba_py:latest
@@ -296,7 +303,7 @@ application/atom+xml
 ('s2', '2B', 3392) 2020-10-02 10:47:59 2021-12-30 10:33:39
 ```
 
-At the current stage, all Sentinel-2 L2A is available, but only a subset of Sentinel-1 CARD-BS and CARD-COH6, since no specific orders have been made (the available scenes are "spill over" for other actions run on CREODIAS).
+At the current stage, all Sentinel-2 L2A is available, but only a subset of Sentinel-1 CARD-BS and CARD-COH6, since no [specific order](#ordering-s1-card-data) have been made (the available scenes are "spill over" for other actions run on CREODIAS).
 
 ### Check which UTM projections are in the CARD data sets
 
@@ -319,7 +326,7 @@ alter table dk2021_32632_10_rast add primary key(pid);
 
 There is no need for a spatial index on the rast field, because all spatial selection are done on the original parcel feature table.
 
-Make sure that the table naming convention {aoi}_{UTM}_{res}_rast is stricly adhered to (will be used in extraction code).
+Make sure that the table naming convention {aoi}_{UTM}_{res}_rast is strictly adhered to (will be used in extraction code).
 
 Houston, everything ready for extraction!
 
@@ -328,12 +335,13 @@ Houston, everything ready for extraction!
 Extraction code is on cbm/extraction. The directory data is needed for temporary storage of VRT files:
 
 ```bash
+cd cbm/extraction
 mkdir data
 ```
 
 ## Single runs
 
-Executables takes their parameters from a runtime configuration file. Note that database tables need to specify the schema. The docker section defines the address of the swarm master.
+Executables take their parameters from a runtime configuration file. Note that database tables need to specify the schema. The docker section defines the address of the swarm master.
 
 ```json
 {
@@ -375,21 +383,23 @@ A single histogram extraction run is executed as follows:
 docker run -it --rm -v`pwd`:/usr/src/app -v/eodata:/eodata -v/1/DIAS:/1/DIAS glemoine62/dias_numba_py python factoredWindowedExtraction.py s2 -1
 ```
 
-For the 10 m band run, change the argument -1 to 10, for 20 m band runs, change to 20.
+For the 10 m band run, change the argument -1 to 10, for the 20 m band run, change to 20.
+
+For S1 CARD-BS ans CARD-COH6 extraction use the arguments ```bs 10``` and ```c6 20``` respectively.
 
 Note that **BOTH** the /eodata and /1/DIAS volumes need to be mounted by the container. The latter is a local cache where all data read from S3 is stored. This needs to be cleared after each run (done inside the code).
 
 Extraction manipulates the status field of the dias_catalogue, as follows:
-- After [catalogue transfer](#Transfer-records-from-findercreodiaseu) all new images are marked with status 'ingested'
-- At the start of extraction an image candidate will be marked as 'inprogress'
-- If no parcels are found in the image footprint, status is changed to 'No parcels'
+- After [catalogue transfer](#transfer-records-from-findercreodiaseu) all new images are marked with status 'ingested'.
+- At the start of extraction an image candidate will be marked as 'inprogress'.
+- If no parcels are found in the image footprint, status is changed to 'No parcels'.
 - If extraction fails (for a variety of reasons) status is changed to a meaningful error status (e.g. 'No in db', 'Rio error', 'Parcel SQL') which can be traced to the relevant code fragment.
-- If extraction completes without error for a set of parcels, status is changed to 'extracted'
-- Extraction exits after a particular status is reached.
+- If extraction completes without error for a set of parcels, status is changed to 'extracted'.
+- Extraction exits after a particular status (other than 'inprogress') is reached.
 
 Check status statistics in the database:
 
-```
+```postgresql
 select card, status, count(*) from dias_catalogue group by card, status;
 ```
 
@@ -442,7 +452,7 @@ docker stack rm scl
 
 A solution to the stack termination issue is to integrate stack deployment with logic that can tear down the stack after checking 'ingested' status in the database. This can, in principle, be done in the bash shell (e.g. running a background process). A slightly more elegant solution is with python_on_whales, which controls docker processes from within python.
 
-A slight drawback is the need to install some python modules on the VM:
+A drawback is the need to install some python modules on the VM:
 
 ```bash
 sudo cp /usr/bin/python3 /usr/bin/python
@@ -463,9 +473,9 @@ The ```pow_extract_s1.py``` is the equivalent for Sentinel-1 CARD extraction.
 
 ## Post extraction checks
 
-Extraction may run for several days, depending on archive size and number of parcel features. At the end of the extraction run, some images may have been left in 'inprogress' status. This may be because of a dropped database connection, or for some other reason.
+Extraction may run for several days, depending on archive size and number of parcel features. At the end of the extraction run, some images may have been left in 'inprogress' status. This may be because of a dropped database connection, or for some other reason, though usually not a script error.
 
-The 'inprogress' status may have been reached after a subset of parcels were already extracted. Thus, it is best to clean out the hists and sigs tables and redo the extraction. Save the 'inprogress' records to a separate table.
+The 'inprogress' status may have been reached after a subset of parcels were already extracted. Thus, it is best to clean out the hists and sigs tables and redo the extraction. Save the 'inprogress' records to a separate table and use it to clean up.
 
 ```postgresql
 create table faulties as (select id from dias_catalogue where status = 'inprogress' and card ='s2');
@@ -475,9 +485,11 @@ delete from sigs where obsid in (select id from faulties);
 update dias_catalogue set status = 'ingested' where status = 'inprogress';
 ```
 
-**DO NOT USE** the pow_extract_s2.py script, because it will reset ALL extracted status to ingested for the second stack run!!!
+**DO NOT USE** the ```pow_extract_s2.py``` script, because it will reset ALL extracted status to ingested for the second stack run!!!
 
-Instead, run as many [individual runs](#Single-runs) as the number of 'inprogress' records. Use a bash script, if needed. Start with the SCL extraction to histograms. After it has finished, reset:
+Instead, run as many [individual runs](#single-runs) as the number of 'inprogress' records. Use a bash script, if needed. Start with the SCL extraction to histograms.
+
+After it has finished, reset:
 
 ```postgresql
 update dias_catalogue set status = 'ingested' where id in (select id from faulties)
@@ -489,18 +501,119 @@ Run the extraction for 10 m bands, reset again, run the 20 m bands and wrap up:
 drop table faulties;
 ```
 
-## Vacuum and cluster
+# Ordering S1 CARD data
 
-The hists and sigs hold many millions of records after extraction. Both are indexed on the parcel id (pid) and observation id (obsid). The sigs table is also indexed on band. Since the typical access pattern is expected to be based on the parcel id, the tables are clustered on the pid index.
+Contrary to Sentinel-2, DIAS does not store any (Copernicus) Application Ready Data for Sentinel-1. S1-CARD needs to be processed on demand. A DIAS user has two options: (1) using the [open source SNAP s1tbx](https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1) with the specific recipes to generate CARD-BS and CARD-COH6 from S1-GRD and S1-SLC, respectively or (2) order CARD-BS and CARD-COH6 directly from the Processing-as-a-Service (PaaS) offered by the DIAS.
 
-```postgresql
-vacuum analyze hists;
-cluster hists using (hists_pidx);
-vacuum analyze sigs;
-cluster sigs using (sigs_pidx)
+Although the first option provides more control, e.g. in the fine-tuning of s1tbx processing graphs, it requires significant compute resources and storage space. Option (2) is offered at a per-unit price, which includes the storage of the CARD output (for the duration of the project). The PaaS does the same as in option (1) but with flexible scaling of the compute resources.
+
+## Installing ordering scripts
+
+The ordering procedure and relevant script are described for [the CREODIAS PaaS](https://gitlab.cloudferro.com/bjaroszkowski/ordering_script/-/blob/master/README.md).
+
+Note that orders have to be created on the VM that is linked to the correct account, for billing.
+
+```bash
+mkdir creodias
+cd creodias
+git clone https://gitlab.cloudferro.com/bjaroszkowski/ordering_script.git
+cd ordering_script/
 ```
 
-This will take considerable time. Clustering can only be performed if sufficient disk space is available as each table is rewritten in its entirety.
+This script installs a crontab task for (future) systematic daily orders. For now, it is better to switch this task off:
+
+```bash
+crontab -e
+```
+
+prepend a # to the line, so that it looks like this:
+
+```bash
+#0 0 * * * . /home/eouser/creodias/ordering_script/my_env.sh; /home/eouser/creodias/ordering_script/venv/bin/python  /home/eouser/creodias/ordering_script/systematic_order.py
+```
+
+## Create a catalog request on finder.creodias.eu
+
+Start with defining the query that lists all **Level 1 source data** for the CARD products. For CARD-BS this is GRD, for CARD-COH6 this is SLC.
+
+Since March 2021, all Level 1 GRD data is produced with 'NRT-3h' timeliness. Before that date, 'Fast-24h' should be the default timeliness parameter. Make sure to select the IW sensor mode.
+
+
+```bash
+https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=10&startDate=2020-10-01T00%3A00%3A00Z&completionDate=2022-01-01T23%3A59%3A59Z&processingLevel=LEVEL1&productType=GRD&timeliness=NRT-3h&sensorMode=IW&q=Denmark&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET
+```
+
+For SLC selection, set productType=SLC and remove the timeliness=NRT-3h parameter.
+
+Note that this query returns 807 records for GRD, and 737 for SLC.
+
+Check for existing CARD-BS and CARD-COH6 by setting processingLevel=LEVEL2 and productType=CARD-BS and productType=CARD-COH6 (remove the timeliness parameter).
+
+This will return 284 and 159, from CARD-BS and CARD-COH6 respectively. The order will only process the complement to the existing products.
+
+## Configure the ordering script input
+
+The query has to be parsed into the ```settings_historical.json``` as follows:
+
+For GRD:
+
+```json
+{
+  "platform": "creodias",
+  "start_date": "2020-10-01",
+  "final_date": "2022-01-01",
+  "processor_names": ["card_bs"],
+  "resto_queries": ["https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=200&processingLevel=LEVEL1&productType=GRD&timeliness=NRT-3h&sensorMode=IW&q=Denmark&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET"],
+  "order_names": ["dk_2021_bs"]
+}
+```
+
+For SLC
+
+```json
+{
+  "platform": "creodias",
+  "start_date": "2020-10-01",
+  "final_date": "2022-01-01",
+  "processor_names": ["coh"],
+  "resto_queries": ["https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?maxRecords=200&processingLevel=LEVEL1&productType=SLC&sensorMode=IW&q=Denmark&sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET"],
+  "order_names": ["dk_2021_c6"]
+}
+```
+
+## Launch the order, follow progress
+```bash
+export OS_USERNAME=YOURUSERNAME
+export OS_PASSWORD=YOURPASSWORD
+python historical_order.py
+```
+
+The credentials are needed to be enable the use of the ordering service. The script lists how many products results from the order (not yet corrected for existing products), and prompts the user to proceed with ordering.
+
+The script ends with providing the link at which ordering progress can be reviewed.
+
+```bash
+python get_order_summary.py 1331871
+Validation successful, getting order summary
+{'status': 'processing', 'processing_order_items_count': 40, 'downloading_order_items_count': 0, 'done_order_items_count': 192, 'queued_order_items_count': 575, 'failed_or_cancelled_order_items_count': 0, 'last_order_item_change_timestamp': '2022-02-14T13:35:30.440067+00:00'}
+```
+
+Revise settings_historical.json to run for the SLC card-coh6 selection:
+
+```bash
+python historical_order.py
+Validation successful, proceeding with the order
+Preparing order dk_2021_c6
+Getting next result page...
+Getting next result page...
+Getting next result page...
+Getting next result page...
+Getting next result page...
+You are about to make an order containing 831 products.
+Do you want to review, proceed or abort? (r/p/a)p
+Order dk_2021_c6 with ID 1331979 made successfully.
+You can monitor progress of you order by calling https://finder.creodias.eu/api/order/1331979/summary
+```
 
 
 # Maintenance
@@ -521,7 +634,28 @@ postgres=# select count(*) from hists;
 i.e. almost 38% of all sigs records can be removed (~ 21 GB) without significant loss of information (the cloud cover information is not removed).
 
 
+
+## Vacuum and cluster
+
+The hists and sigs hold many millions of records after extraction. Both are indexed on the parcel id (pid) and observation id (obsid). The sigs table is also indexed on band. Since the typical access pattern is expected to be based on the parcel id, the tables are clustered on the pid index.
+
+```postgresql
+vacuum analyze hists;
+cluster hists using (hists_pidx);
+vacuum analyze sigs;
+cluster sigs using (sigs_pidx)
+```
+
+This will take considerable time and should be done at the end of an extended extraction run. Clustering can only be performed if sufficient disk space is available as each table is rewritten in its entirety.
+
+<!--
 ## table backup with pg_dump
 ## adding bands and/or indices
 ## automate extraction
-## what else
+## what else?
+-->
+
+[![Linux](https://svgshare.com/i/Zhy.svg)](https://svgshare.com/i/Zhy.svg)
+[![made-with-Markdown](https://img.shields.io/badge/Made%20with-Markdown-1f425f.svg)](http://commonmark.org)
+[![Bash Shell](https://badges.frapsoft.com/bash/v1/bash.png?v=103)](https://github.com/ellerbrock/open-source-badges/)
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
