@@ -7,6 +7,7 @@
 -->
 
 Version 1.1, 15 February 2022
+Version 1.2, 25 February 2022 - Updated extraction section for status
 
 ## Account set up
 An Onboarding Member State needs a DIAS account. For the account, a contact person (name, email, phone) has to be identified.
@@ -473,7 +474,22 @@ The ```pow_extract_s1.py``` is the equivalent for Sentinel-1 CARD extraction.
 
 ## Post extraction checks
 
-Extraction may run for several days, depending on archive size and number of parcel features. At the end of the extraction run, some images may have been left in 'inprogress' status. This may be because of a dropped database connection, or for some other reason, though usually not a script error.
+Extraction may run for several days, depending on archive size and number of parcel features. A full list of status flags and their meaning and possible remedy is as follows:
+
+| Status | Meaning | Remedy |
+| ------ | ------- | ------ |
+| ingested | the image has not been processed | run extraction |
+| extracted | the image has been successfully processed | |
+| inprogress | the image is currently being processed or failed | see below |
+| Rio error | an error occurred when reading the image | most likely cause is that the image does not cover the parcel selection (this is actually a bug) |
+| !S3 VV.img | the VV image is not found on /eodata | check /eodata |
+| No in db | the connection to the database for read could not be made | check database run configuration |
+| No out db | the connection to the database for write could not be made | check database run configuration |
+| No extent | the extent of the parcel selection could not be generated | check parcel table in database |
+| Parcel SQL | a query was made on a rasterized parcel table that does not exist | check dias_catalogue for images which have a projection that was not prepared during rasterization. Check if these are relevant for extraction and, if so, rasterize for the projection, reset status to 'inprogess' and rerun extraction |
+| No parcels | the image has been processed, but no parcels are found inside its footprint | Do NOT delete these records because they will otherwise be re-ingested in a subsequent catalog search |
+
+At the end of the extraction run, some images may have been left in 'inprogress' status. First verify that the extraction process has completely finished (the 'inprogress' status DURING extraction is perfectly normal). Images are left in 'inprogress' status AFTER extraction if their processing suffered from memory overflow or a dropped database connection, though usually not a script error.
 
 The 'inprogress' status may have been reached after a subset of parcels were already extracted. Thus, it is best to clean out the hists and sigs tables and redo the extraction. Save the 'inprogress' records to a separate table and use it to clean up.
 
