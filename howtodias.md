@@ -8,6 +8,7 @@
 
 Version 1.1, 15 February 2022
 Version 1.2, 25 February 2022 - Updated extraction section for status
+Version 1.3, 26 April 2022 - Minor updates
 
 ## Account set up
 An Onboarding Member State needs a DIAS account. For the account, a contact person (name, email, phone) has to be identified.
@@ -151,20 +152,25 @@ Since the VM itself has no postgresql clients installed (yet), access the databa
 ```bash
 docker exec -it ams_db /bin/bash
 psql -U postgres
-drop extension tiger;
-alter role postgres with password 'YOURPASSWORD';
+```
+```postgresql
+DROP extension tiger;
+DROP SCHEMA tiger;
+ALTER ROLE postgres with password 'YOURPASSWORD';
 ```
 
 One can now communicate with the postgresql database from external machines, but only with the password.
 
 ### Stuff the GSAA shape file
 
-Upload the shape set into dk2021 table. This can be done from a remote machine. Make sure to pass in the spatial reference system code and default MULTIPOLYGON type.
+Upload the parcels polygons file to the database. This can be done from a remote machine. Make sure to pass in the spatial reference system code and default MULTIPOLYGON type.
 
 Test with QGIS connection to database.
 
+*In this example we use Denmark dataset of 2021: dk2021 ({country code}{year}). Replace dk2021 with the country code and year corresponding to your dataset.*
+
 ```bash
-ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=postgres password=YOURPASSWORD" -nln dk2021 -a_srs EPSG:25832 -nlt PROMOTE_TO_MULTI Endelige_marker_til_DHI_2021.sh
+ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=postgres password=YOURPASSWORD" -nln dk2021 -a_srs EPSG:25832 -nlt PROMOTE_TO_MULTI Denmark_2021_parcels.sh
 ```
 
 ### Set up required tables
@@ -172,9 +178,9 @@ ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=
 The aois table holds the definition of the Area Of Interest, which is the outline of the area for which CARD data needs to be processed. This can be generated from the extent of the parcel set.
 
 ```postgresql
-create table aois (name text);
-select addgeometrycolumn('aois', 'wkb_geometry', 4326, 'POLYGON', 2);
-insert into aois values ('dk2021', (select st_transform(st_setsrid(st_extent(wkb_geometry), 25832), 4326) from dk2021));
+CREATE TABLE aois (name text);
+SELECT addgeometrycolumn('aois', 'wkb_geometry', 4326, 'POLYGON', 2);
+INSERT into aois values ('dk2021', (SELECT st_transform(st_setsrid(st_extent(wkb_geometry), 25832), 4326) FROM dk2021));
 ```
 
 Metadata for CARD data needs to be transferred from the DIAS catalog to the database. The cross-section of parcels and CARD data sets is stored in the hists table (cloud-occurence statistics for Sentinel-2 L2A) and sigs table (all bands extracts for Sentinel-2 L2A, Sentinel-1 CARD-BS and Sentinel-1 CARD-COH6).
@@ -252,6 +258,11 @@ The metadata of Sentinel CARD needs to be transcribed into the dias_catalogue ta
 
 In the folder cbm/catalog update the cat_config.json as follows (using the docker network to connect to the container):
 
+```bash
+cd cbm/catalog
+vi cat_config.json
+```
+
 ```json
 {
 	"database": {
@@ -311,7 +322,7 @@ At the current stage, all Sentinel-2 L2A is available, but only a subset of Sent
 Parcel extraction uses rasterized versions of the parcel features. These need to be generated (once) for the UTM projections and resolutions (10, 20 m) of the CARD data. The UTM projections over the AOI can be retrieved from the Sentinel-2 L2A image names, which are stored as reference in the dias_catalogue
 
 ```postgresql
-select distinct substr(split_part(reference, '_', 6),2,2)::int from dias_catalogue, aois where footprint && wkb_geometry and card = 's2';
+SELECT distinct substr(split_part(reference, '_', 6),2,2)::int FROM dias_catalogue, aois WHERE footprint && wkb_geometry And card = 's2';
 ```
 
 (returns 32 and 33)
@@ -319,7 +330,7 @@ select distinct substr(split_part(reference, '_', 6),2,2)::int from dias_catalog
 ### Create raster versions of the parcels in required projection and resolution
 
 ```postgresql
-create table dk2021_32632_10_rast as (select ogc_fid pid, st_asraster(st_transform(wkb_geometry, 32632), 10.0, 10.0, '8BUI') rast from dk2021);
+CREATE TABLE dk2021_32632_10_rast as (SELECT ogc_fid pid, st_asraster(st_transform(wkb_geometry, 32632), 10.0, 10.0, '8BUI') rast from dk2021);
 alter table dk2021_32632_10_rast add primary key(pid);
 ```
 
@@ -342,7 +353,7 @@ mkdir data
 
 ## Single runs
 
-Executables take their parameters from a runtime configuration file. Note that database tables need to specify the schema. The docker section defines the address of the swarm master.
+Executables take their parameters from a runtime configuration file (db_config.json). Note that database tables need to specify the schema. The docker section defines the address of the swarm master.
 
 ```json
 {
@@ -401,7 +412,7 @@ Extraction manipulates the status field of the dias_catalogue, as follows:
 Check status statistics in the database:
 
 ```postgresql
-select card, status, count(*) from dias_catalogue group by card, status;
+SELECT card, status, count(*) from dias_catalogue group by card, status;
 ```
 
 ## docker stack runs
@@ -426,8 +437,14 @@ services:
 
 and can be deployed as follows:
 
+first initialize swarm and set current node as manager
 ```bash
-docker stack deploy -c docker-compose_scl.yml
+docker swarm init
+```
+
+Then run
+```bash
+docker stack deploy -c docker-compose_scl.yml extractor
 ```
 
 This will start 4 parallel processes that run the histogram extraction.
@@ -494,11 +511,11 @@ At the end of the extraction run, some images may have been left in 'inprogress'
 The 'inprogress' status may have been reached after a subset of parcels were already extracted. Thus, it is best to clean out the hists and sigs tables and redo the extraction. Save the 'inprogress' records to a separate table and use it to clean up.
 
 ```postgresql
-create table faulties as (select id from dias_catalogue where status = 'inprogress' and card ='s2');
+CREATE TABLE faulties as (SELECT id FROM dias_catalogue WHERE status = 'inprogress' and card ='s2');
 
-delete from hists where obsid in (select id from faulties);
-delete from sigs where obsid in (select id from faulties);
-update dias_catalogue set status = 'ingested' where status = 'inprogress';
+DELETE FROM hists WHERE obsid in (SELECT id FROM faulties);
+DELETE FROM sigs WHERE obsid in (SELECT id FROM faulties);
+update dias_catalogue set status = 'ingested' WHERE status = 'inprogress';
 ```
 
 **DO NOT USE** the ```pow_extract_s2.py``` script, because it will reset ALL extracted status to ingested for the second stack run!!!
@@ -508,7 +525,7 @@ Instead, run as many [individual runs](#single-runs) as the number of 'inprogres
 After it has finished, reset:
 
 ```postgresql
-update dias_catalogue set status = 'ingested' where id in (select id from faulties)
+UPDATE dias_catalogue set status = 'ingested' WHERE id in (SELECT id FROM faulties)
 ```
 
 Run the extraction for 10 m bands, reset again, run the 20 m bands and wrap up:
@@ -639,9 +656,9 @@ You can monitor progress of you order by calling https://finder.creodias.eu/api/
 If database size is an issue, one easy reduction step is to delete all sigs records for which parcels are fully cloud covered (SCL value 9):
 
 ```postgresql
-with cnt_keys as (select pid, obsid, (select count(*) from jsonb_object_keys(hist::jsonb)) from hists where hist::jsonb ? '9')  select * into cloudy from cnt_keys where count = 1;
+WITH cnt_keys as (SELECT pid, obsid, (SELECT count(*) FROM jsonb_object_keys(hist::jsonb)) FROM hists WHERE hist::jsonb ? '9') SELECT * into cloudy FROM cnt_keys WHERE count = 1;
 SELECT 49879887
-postgres=# select count(*) from hists;
+postgres=# SELECT count(*) FROM hists;
    count   
 -----------
  131393590
