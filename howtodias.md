@@ -48,8 +48,7 @@ Create a new Security group that allows Ingress on a non-standard port (e.g. 110
 On any new VM start with:
 
 ```bash
-sudo apt update
-sudo apt upgrade -y
+sudo apt update && sudo apt upgrade -y
 sudo apt install vim
 ```
 (cannot be run unattended if kernel update!!).
@@ -167,10 +166,8 @@ Upload the parcels polygons file to the database. This can be done from a remote
 
 Test with QGIS connection to database.
 
-*In this example we use Denmark dataset of 2021: dk2021 ({country code}{year}). Replace dk2021 with the country code and year corresponding to your dataset.*
-
 ```bash
-ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=postgres password=YOURPASSWORD" -nln dk2021 -a_srs EPSG:25832 -nlt PROMOTE_TO_MULTI Denmark_2021_parcels.sh
+ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=postgres password=YOURPASSWORD" -nln parcels_2021 -a_srs EPSG:25832 -nlt PROMOTE_TO_MULTI example_2021_parcels.shp
 ```
 
 ### Set up required tables
@@ -180,7 +177,7 @@ The aois table holds the definition of the Area Of Interest, which is the outlin
 ```postgresql
 CREATE TABLE aois (name text);
 SELECT addgeometrycolumn('aois', 'wkb_geometry', 4326, 'POLYGON', 2);
-INSERT into aois values ('dk2021', (SELECT st_transform(st_setsrid(st_extent(wkb_geometry), 25832), 4326) FROM dk2021));
+INSERT into aois values ('parcels_2021', (SELECT st_transform(st_setsrid(st_extent(wkb_geometry), 25832), 4326) FROM parcels_2021));
 ```
 
 Metadata for CARD data needs to be transferred from the DIAS catalog to the database. The cross-section of parcels and CARD data sets is stored in the hists table (cloud-occurence statistics for Sentinel-2 L2A) and sigs table (all bands extracts for Sentinel-2 L2A, Sentinel-1 CARD-BS and Sentinel-1 CARD-COH6).
@@ -291,17 +288,17 @@ For DK, run the Sentinel-2 selection over 3 months periods (for the entire date 
 For Sentinel-1 the total number of scenes is typically lower (much larger footprints), so longer periods can be used.
 
 ```bash
-docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS2MetaXfer2DB.py dk2021 2021-09-01 2022-01-01 LEVEL2A s2
+docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS2MetaXfer2DB.py parcels_2021 2021-09-01 2022-01-01 LEVEL2A s2
 POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
 application/atom+xml
 1761 found
 
-docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS1MetaXfer2DB.py dk2021 2020-10-01 2022-01-01 CARD-BS bs
+docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS1MetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-BS bs
 POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
 application/atom+xml
 666 found
 
-docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS1MetaXfer2DB.py dk2021 2020-10-01 2022-01-01 CARD-COH6 c6
+docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS1MetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-COH6 c6
 POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
 application/atom+xml
 337 found
@@ -330,8 +327,8 @@ SELECT distinct substr(split_part(reference, '_', 6),2,2)::int FROM dias_catalog
 ### Create raster versions of the parcels in required projection and resolution
 
 ```postgresql
-CREATE TABLE dk2021_32632_10_rast as (SELECT ogc_fid pid, st_asraster(st_transform(wkb_geometry, 32632), 10.0, 10.0, '8BUI') rast from dk2021);
-alter table dk2021_32632_10_rast add primary key(pid);
+CREATE TABLE parcels_2021_32632_10_rast as (SELECT ogc_fid pid, st_asraster(st_transform(wkb_geometry, 32632), 10.0, 10.0, '8BUI') rast from parcels_2021);
+alter table parcels_2021_32632_10_rast add primary key(pid);
 ```
 
 (repeat for every other combination of UTM projection and resolution)
@@ -367,14 +364,14 @@ Executables take their parameters from a runtime configuration file (db_config.j
         },
         "tables": {
             "aoi_table": "public.aois",
-            "parcel_table": "public.dk2021",
+            "parcel_table": "public.parcels_2021",
             "catalog_table": "public.dias_catalogue",
             "sigs_table": "public.sigs",
             "hists_table": "public.hists"
         },
         "args": {
             "aoi_field": "name",
-            "name": "dk2021",
+            "name": "parcels_2021",
             "startdate": "2020-10-01",
             "enddate": "2022-01-01"
         }
@@ -444,7 +441,7 @@ docker swarm init
 
 Then run
 ```bash
-docker stack deploy -c docker-compose_scl.yml extractor
+docker stack deploy -c docker-compose_scl.yml scl
 ```
 
 This will start 4 parallel processes that run the histogram extraction.
@@ -515,7 +512,7 @@ CREATE TABLE faulties as (SELECT id FROM dias_catalogue WHERE status = 'inprogre
 
 DELETE FROM hists WHERE obsid in (SELECT id FROM faulties);
 DELETE FROM sigs WHERE obsid in (SELECT id FROM faulties);
-update dias_catalogue set status = 'ingested' WHERE status = 'inprogress';
+UPDATE dias_catalogue set status = 'ingested' WHERE status = 'inprogress';
 ```
 
 **DO NOT USE** the ```pow_extract_s2.py``` script, because it will reset ALL extracted status to ingested for the second stack run!!!
