@@ -177,7 +177,7 @@ The aois table holds the definition of the Area Of Interest, which is the outlin
 ```postgresql
 CREATE TABLE aois (name text);
 SELECT addgeometrycolumn('aois', 'wkb_geometry', 4326, 'POLYGON', 2);
-INSERT into aois values ('parcels_2021', (SELECT st_transform(st_setsrid(st_extent(wkb_geometry), (SELECT Find_SRID('public', 'parcels_2022_vista', 'wkb_geometry')), 4326) FROM parcels_2021));
+INSERT into aois values ('parcels_2021', (SELECT st_transform(st_setsrid(st_extent(wkb_geometry), (SELECT Find_SRID('public', 'parcels_2021', 'wkb_geometry')), 4326) FROM parcels_2021));
 ```
 
 Metadata for CARD data needs to be transferred from the DIAS catalog to the database. The cross-section of parcels and CARD data sets is stored in the hists table (cloud-occurence statistics for Sentinel-2 L2A) and sigs table (all bands extracts for Sentinel-2 L2A, Sentinel-1 CARD-BS and Sentinel-1 CARD-COH6).
