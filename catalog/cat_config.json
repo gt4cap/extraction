@@ -1,19 +1,18 @@
 {
-	"database": {
-		"connection": {
-			"host": "172.17.0.2",
-			"dbname": "postgres",
-			"dbuser": "postgres",
-			"dbpasswd": "YOURPASSWORD",
-			"port": 5432
-		},
-		"tables": {
-			"aoi_table": "aois",
-			"catalog_table": "dias_catalogue"
-		},
-		"args": {
-			"aoi_field": "name"
-		}
-	}
+    "database": {
+        "connection": {
+            "host": "172.17.0.2",
+            "dbname": "postgres",
+            "dbuser": "postgres",
+            "dbpasswd": "YOURPASSWORD",
+            "port": 5432
+        },
+        "tables": {
+            "aoi_table": "aois",
+            "catalog_table": "dias_catalogue"
+        },
+        "args": {
+            "aoi_field": "name"
+        }
+    }
 }
-
