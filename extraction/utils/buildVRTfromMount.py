@@ -7,7 +7,9 @@ from osgeo import gdal
 
 from . import updateImageStatus as uis
 
-# CREODIAS public S3 archive access
+# CREODIAS public S3 archive access
+
+
 def buildVRTfromMount(cand, cardtype, bands, mountdir):
     # cand is a tuple
     oid = cand[0]
@@ -15,7 +17,7 @@ def buildVRTfromMount(cand, cardtype, bands, mountdir):
     obstime = cand[2]
 
     imglist = []
-    
+
     if cardtype == 'bs':
         vrt_options = gdal.BuildVRTOptions(separate=True, srcNodata=0, VRTNodata=0)
         for b in bands:
@@ -46,21 +48,23 @@ def buildVRTfromMount(cand, cardtype, bands, mountdir):
             return False
         else:
             imglist.append(imgpath)
+    elif cardtype == 'c1':
+        return True
     elif cardtype == 's2':
         vrt_options = gdal.BuildVRTOptions(separate=True, srcNodata=0, VRTNodata=0)
         # the CARD-COH6 image is a single GeoTIFF with 2 bands
         imgpath = f"/{mountdir}/Sentinel-2/MSI/L2A/{datetime.strftime(obstime, '%Y/%m/%d')}/{reference}/GRANULE/"
-	# We first need to retrieve the subdir
+        # We first need to retrieve the subdir
         flist = glob.glob(f"{imgpath}/*")
-        
+
         if not flist:
             print(f"Resource {imgpath} not available in S3 storage (FATAL)")
             if (uis.updateImageStatus(oid, f"!S3 subdir", 'inprogress')):
-                return False    
+                return False
             return False
 
         subdir = flist[0].replace(imgpath,'').split('/')[0]
-        
+
         mgrs_tile = reference.split('_')[5]
         full_tstamp = reference.split('_')[2]
 
