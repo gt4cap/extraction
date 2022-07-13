@@ -1,31 +1,33 @@
-# updateImageStatus - update image status 
+# updateImageStatus - update image status
 #
 import json
-
 import psycopg2
+
 
 def updateImageStatus(oid, new_status, current_status):
     # Spatial database details
     with open('db_config.json', 'r') as f:
-        dbconfig = json.load(f)
-    dbconfig = dbconfig['database']
+        dbconfig = json.load(f)['database']
+    dbconn = dbconfig['connection']
 
-    connString = "host={} dbname={} user={} port={} password={}".format(\
-        dbconfig['connection']['host'], dbconfig['connection']['dbname'],\
-        dbconfig['connection']['dbuser'], dbconfig['connection']['port'],\
-        dbconfig['connection']['dbpasswd'])
+    conn_str = f"host={dbconn['host']} dbname={dbconn['dbname']}\
+        user={dbconn['dbuser']} port={dbconn['port']}\
+        password={dbconn['dbpasswd']}"
 
-    conn = psycopg2.connect(connString)
+    conn = psycopg2.connect(conn_str)
     if not conn:
         print("No connection established")
         return(None)
 
-    updateSql = f"update {dbconfig['tables']['catalog_table']} set status='{new_status}' where id = {oid} and status = '{current_status}'"""
+    updateSql = f"""UPDATE {dbconfig['tables']['catalog_table']}
+        SET status='{new_status}'
+        WHERE id = {oid} And status = '{current_status}'"""
     with conn.cursor() as update_cur:
         update_cur.execute(updateSql)
         conn.commit()
         if update_cur.rowcount == 1:
-            print(f"Record for {oid} updated to {new_status} from {current_status}")
+            print(f"Record for {oid} updated to {new_status}",
+                  "from {current_status}")
             conn.close()
             return True
 
