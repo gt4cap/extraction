@@ -22,9 +22,11 @@ if g:
             bands = ['B02', 'B03', 'B04', 'B08']
         else:
             bands = ['B05', 'B11']
-    else:
+    elif tstype == 'bs':
         bands = ['VV', 'VH']
-        
+    elif tstype == 'c1':
+        bands = ['VV']
+
     if buildVRTfromMount.buildVRTfromMount(g, tstype, bands, 'eodata'):
         print(f"{g[0]} transferred to disk and VRT built")
         if res == -1:
