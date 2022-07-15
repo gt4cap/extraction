@@ -227,12 +227,15 @@ CREATE INDEX hists_pidx ON public.hists USING btree (pid);
 
 ## Setting up extraction
 
-### Pull dias_numba_py
+### Build dias_numba_py image
 
-All python dependencies for fast extraction are packaged in the ```glemoine62/dias_numba_py``` docker image. Thus, all extraction routine will be run from within a derived container.
+All python dependencies for fast extraction are packaged in the ```dias_numba_py``` docker image. Thus, all extraction routine will be run from within a derived container. The docker build command builds Docker images from a Dockerfile, the Dockerfile is available in the docker/dias_numba_py folder.
+
+To build the image from the Dockerfile run:
 
 ```bash
-docker pull glemoine62/dias_numba_py:latest
+cd docker/dias_numba_py
+docker build -t dias_numba_py .
 ```
 
 ### git install catalog and extraction code
@@ -288,17 +291,17 @@ For DK, run the Sentinel-2 selection over 3 months periods (for the entire date 
 For Sentinel-1 the total number of scenes is typically lower (much larger footprints), so longer periods can be used.
 
 ```bash
-docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS2MetaXfer2DB.py parcels_2021 2021-09-01 2022-01-01 LEVEL2A s2
+docker run -it --rm -v`pwd`:/usr/src/app dias_numba_py python creodiasCARDMetaXfer2DB.py parcels_2021 2021-09-01 2022-01-01 LEVEL2A s2
 POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
 application/atom+xml
 1761 found
 
-docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS1MetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-BS bs
+docker run -it --rm -v`pwd`:/usr/src/app dias_numba_py python creodiasCARDMetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-BS bs
 POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
 application/atom+xml
 666 found
 
-docker run -it --rm -v`pwd`:/usr/src/app glemoine62/dias_numba_py python creodiasCARDS1MetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-COH6 c6
+docker run -it --rm -v`pwd`:/usr/src/app dias_numba_py python creodiasCARDMetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-COH6 c6
 POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
 application/atom+xml
 337 found
@@ -313,6 +316,7 @@ application/atom+xml
 ```
 
 At the current stage, all Sentinel-2 L2A is available, but only a subset of Sentinel-1 CARD-BS and CARD-COH6, since no [specific order](#ordering-s1-card-data) have been made (the available scenes are "spill over" for other actions run on CREODIAS).
+
 
 ### Check which UTM projections are in the CARD data sets
 
@@ -346,6 +350,7 @@ Extraction code is on cbm/extraction. The directory data is needed for temporary
 ```bash
 cd cbm/extraction
 mkdir data
+# mkdir /1/DIAS
 ```
 
 ## Single runs
@@ -389,7 +394,7 @@ The order of the Sentinel-1 CARD-BS and CARD-COH6 runs is not important.
 A single histogram extraction run is executed as follows:
 
 ```
-docker run -it --rm -v`pwd`:/usr/src/app -v/eodata:/eodata -v/1/DIAS:/1/DIAS glemoine62/dias_numba_py python factoredWindowedExtraction.py s2 -1
+docker run -it --rm -v`pwd`:/usr/src/app -v/eodata:/eodata -v/1/DIAS:/1/DIAS dias_numba_py python factoredWindowedExtraction.py s2 -1
 ```
 
 For the 10 m band run, change the argument -1 to 10, for the 20 m band run, change to 20.
@@ -422,7 +427,7 @@ The stack requires a docker compose configuration as follows:
 version: '3.5'
 services:
   vector_extractor:
-    image: glemoine62/dias_numba_py:latest
+    image: dias_numba_py:latest
     volumes:
             - /home/eouser/cbm/extraction:/usr/src/app
             - /eodata:/eodata
