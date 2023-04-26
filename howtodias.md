@@ -23,11 +23,11 @@ A tenant VM is not set up with account creation. This needs to be done via the [
 
 If done by MS (see [Essential steps](#essential-steps) below):
 
-- For hands-on support to the Member State, JRC needs to have ssh access to the account. JRC provides the public key that is used on it's own DIAS resources.
+OPTIONAL - For hands-on support to the Member State from JRC:
+
+- JRC needs to have ssh access to the account. JRC provides the public key that is used on it's own DIAS resources.
 - The public key needs to be appended to the ~/.ssh/authorized_keys file on the MS VM.
 - JRC to confirm ssh access.
-
-**Alternative**: JRC to set up VM with MS credentials.
 
 ### Essential steps
 
@@ -37,7 +37,7 @@ Select a machine type that can handle extraction on a single box (KISS). An 8 vC
 
 Add a volume (for db). See detailed instructions on [the CREODIAS FAQ page](https://creodias.eu/-/how-to-attach-a-volume-to-vm-2-tb-linux-?inheritRedirect=true&redirect=%2Ffaq-data-volume).
 
-The VM needs to be created with sufficient disk space to run the database. Rule of thumb: 200 GB disk space for 1 Million parcels for one year volume (all S1 and S2).
+The VM needs to be created with sufficient disk space to run the database, you can also create a separate volume and attach it to the VM. Rule of thumb: 200 GB disk space for 1 Million parcels for one year (all S1 and S2).
 
 We assume mount volume is at /data
 
