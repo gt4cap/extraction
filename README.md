@@ -1,3 +1,3 @@
 Extraction and catalog code
 
-Please read [[the How-To manual](../howtodias.md) for full details
+Please read [the How-To manual](howtodias.md) for full details
