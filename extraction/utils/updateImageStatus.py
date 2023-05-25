@@ -26,8 +26,7 @@ def updateImageStatus(oid, new_status, current_status):
         update_cur.execute(updateSql)
         conn.commit()
         if update_cur.rowcount == 1:
-            print(f"Record for {oid} updated to {new_status}",
-                  "from {current_status}")
+            print(f"Record for {oid} updated to {new_status} from {current_status}")
             conn.close()
             return True
 
