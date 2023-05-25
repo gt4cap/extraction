@@ -1,11 +1,11 @@
 {
     "database": {
         "connection": {
-            "host": "172.17.0.2",
+            "host": "YOURIP",
             "dbname": "postgres",
             "dbuser": "postgres",
             "dbpasswd": "YOURPASSWORD",
-            "port": 5432
+            "port": YOURPORT
         },
         "tables": {
             "aoi_table": "aois",
