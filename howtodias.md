@@ -1,4 +1,4 @@
-# Onboarding a Member State on DIAS
+# Onboarding a Member State on CDSE
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
 ![Maintainer](https://img.shields.io/badge/maintainer-Guido_Lemoine-blue)
 
@@ -15,11 +15,11 @@ Version 1.3, 26 April 2022 - Minor updates
 Version 1.4, 25 May 2023 - Updates to reflect migration to CDSE (ongoing)
 
 ## Account set up
-An Onboarding Member State needs a DIAS account. For the account, a contact person (name, email, phone) has to be identified.
+An Onboarding Member State needs a CDSE account. For the account, a contact person (name, email, phone) has to be identified.
 
-ESA is asked to forward these contact details to the DIAS provider with the explicit authorization to activate the account.
+ESA is asked to forward these contact details to the CDSE provider with the explicit authorization to activate the account.
 
-The DIAS provider confirms, sets up the account and provides the MS contact with the relevant details. The DIAS provider has to allocated credits to the account, so that resources can be used (needs to be confirmed!)
+The CDSE provider confirms, sets up the account and provides the MS contact with the relevant details. The CDSE provider has to allocate credits to the account, so that resources can be used (needs to be confirmed!)
 
 ## VM set up
 
@@ -29,7 +29,7 @@ If done by MS (see [Essential steps](#essential-steps) below):
 
 OPTIONAL - For hands-on support to the Member State from JRC:
 
-- JRC needs to have ssh access to the account. JRC provides the public key that is used on it's own DIAS resources.
+- JRC needs to have ssh access to the account. JRC provides the public key that is used on it's own CDSE resources.
 - The public key needs to be appended to the ~/.ssh/authorized_keys file on the MS VM.
 - JRC to confirm ssh access.
 
@@ -102,6 +102,7 @@ sudo rm -Rf /var/lib/docker.old
 ```
 
 First create a volume for the database and pull a postgis image
+
 ```bash
 docker volume create database
 docker pull mdillon/postgis:latest
@@ -129,7 +130,7 @@ vi /var/lib/postgresql/data/pg_hba.conf
 Change all permissions from ```trust``` to ```md5```, except the local ones.
 Network connection already set to '\*' in ```postgresql.conf```.
 
-Exit the container and commit to an updated image (so as to not loose the updates).
+The changes to the (running) container have to be committed to an updated image (so as to not loose the updates).
 
 On the host VM, the following sequence will:
 - list the running containers (```mdillon/postgis``` is in daemon mode)
@@ -184,7 +185,7 @@ SELECT addgeometrycolumn('aois', 'wkb_geometry', 4326, 'POLYGON', 2);
 INSERT into aois values ('parcels_2021', (SELECT st_transform(st_setsrid(st_extent(wkb_geometry), (SELECT Find_SRID('public', 'parcels_2021', 'wkb_geometry')), 4326) FROM parcels_2021));
 ```
 
-Metadata for CARD data needs to be transferred from the DIAS catalog to the database. The cross-section of parcels and CARD data sets is stored in the hists table (cloud-occurence statistics for Sentinel-2 L2A) and sigs table (all bands extracts for Sentinel-2 L2A, Sentinel-1 CARD-BS and Sentinel-1 CARD-COH6).
+Metadata for CARD data needs to be transferred from the CDSE catalog to the database. The cross-section of parcels and CARD data sets is stored in the hists table (cloud-occurence statistics for Sentinel-2 L2A) and sigs table (all bands extracts for Sentinel-2 L2A, Sentinel-1 CARD-BS and Sentinel-1 CARD-COH6).
 
 Create the tables:
 
@@ -231,6 +232,8 @@ CREATE INDEX hists_pidx ON public.hists USING btree (pid);
 
 ## Setting up extraction
 
+Extraction logic is coded in ***python 3*** compatible scripts.
+
 ### Build dias_numba_py image
 
 All python dependencies for fast extraction are packaged in the ```dias_numba_py``` docker image. Thus, all extraction routine will be run from within a derived container. The docker build command builds Docker images from a Dockerfile, the Dockerfile is available in the docker/dias_numba_py folder.
@@ -242,9 +245,14 @@ cd docker/dias_numba_py
 docker build -t dias_numba_py .
 ```
 
+as an alternative, you can get the configured docker directly:
+
+```bash
+docker pull glemoine62/dias_numba_py
+```
 ### git install catalog and extraction code
 
-The latest extraction code is currently on the **PRIVATE** gt4cap extraction repository (only dev_backend users have access for now). It will migrate to the public cbm repository at some point.
+The latest extraction code is currently on the **PUBLIC** gt4cap extraction repository. It will migrate to the public ec-jrc/cbm repository at some point.
 
 Install the code on the new VM  
 
@@ -256,16 +264,38 @@ git remote add origin https://github.com/gt4cap/extraction.git
 git pull origin main
 ```
 
-### Transfer records from finder.creodias.eu
+### Transfer records from datahub.creodias.eu
 
-The metadata of Sentinel CARD needs to be transcribed into the dias_catalogue table. This is done via scripts that parse the XML output of the OpenSearch requests to [the CREODIAS catalog](https://finder.creodias.eu) for the respective S-2 and S-1 data sets.
+NB. THIS IS A MAJOR UPDATE, REFLECTING THE MIGRATION TO CDSE IN SPRING 2023
 
-In the folder cbm/catalog update the cat_config.json as follows (using the docker network to connect to the container):
+The metadata of Sentinel CARD needs to be transcribed into the dias_catalogue table. This is done via scripts that parse the JSON output of the OpenSearch requests to [the CDSE catalog](https://datahub.creodias.eu) for the respective S-2 and S-1 data sets.
 
-```bash
-cd cbm/catalog
-vi cat_config.json
+The key differences with previous [the CREODIAS catalog](https://finder.creodias.eu) are related to the change in URL of the catalog server and the query response parsing as json (was xml). No that the CREODIAS catalog is no longer up to date and will likely be discontinued in the near future.
+
+#### Preparation
+
+The script assumes that the geometry of the area of interest (aoi) is defined in the project database table ```aois```. This table uses EPSG:4326 as the default projection.
+
+aoi definition can be imported via standard procedures (e.g. ```ogr2ogr```) or directly inserted via the psql client. An example for Denmark, using a GeoJSON formatted bounding polygon is below:
+
+```sql
+insert into aois values ('dk', st_setsrid(st_geomfromgeojson(
+  $${"type":"Polygon","coordinates":
+  [[[7.994683223865975,54.79423424555831],
+  [12.543023067615975,54.540088425896286],
+  [15.377495723865975,54.996407489112244],
+  [15.025933223865975,55.38523613348353],
+  [13.191216426990975,55.235171965073455],
+  [11.158745723865975,58.08938516937467],
+  [7.434380489490975,56.84285231095577],
+  [7.994683223865975,54.79423424555831]]]}$$), 4326));
 ```
+
+(NB. we use st_setsrid explicitly so that it does not throw errors for postgis version before 3.0)
+
+#### Script parameters:
+
+```cdse.py``` reads the database connection details from ```db_config.json```. Edit the parameters to reflect your database set up.
 
 ```json
 {
@@ -288,28 +318,38 @@ vi cat_config.json
 }
 ```
 
-Get the S-2 Level 2A data. Note that the finder.creodias.eu response can have a **maximum of 2000 records** per request. This means that the selection parameters need to be tuned to return less than 2000 records. Since the aoi is fixed, this can only be done by limiting the start and end date parameters.
+Calling syntax:
+
+```bash
+python cdse.py aoi start end card ptype|plevel
+```
+
+all parameters are **required**:
+
+- _aoi_: the name of the aoi in database table ```aois```
+- _start_, _end_: YYYY-MM-dd formatted start and end date of period
+- _card_: CARD type: one of {bs | c6 | c12 | s2}
+- _ptype|plevel_: product type (s1) or processing level (s2) and one of {CARD-BS | CARD-COH6 | CARD-COH12} for s1 and {S2MSI1C | S2MSI2A} for s2
+
+Example:
+
+```bash
+python cdse.py dk 2023-03-01 2023-04-01 s2 S2MSI2A
+```
+
+will get the S-2 Level 2A metadata. Note that the datahub.creodias.eu response can have a **maximum of 2000 records** per request. This means that the selection parameters need to be tuned to return less than 2000 records. Since the aoi is fixed, this can only be done by limiting the start and end date parameters.
 
 For DK, run the Sentinel-2 selection over 3 months periods (for the entire date range). Check whether less than 2000 records are found (if 2000, adapt the range to a shorter period).
 
 For Sentinel-1 the total number of scenes is typically lower (much larger footprints), so longer periods can be used.
 
-```bash
-docker run -it --rm -v`pwd`:/usr/src/app dias_numba_py python creodiasCARDMetaXfer2DB.py parcels_2021 2021-09-01 2022-01-01 LEVEL2A s2
-POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
-application/atom+xml
-1761 found
+#### Output
 
-docker run -it --rm -v`pwd`:/usr/src/app dias_numba_py python creodiasCARDMetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-BS bs
-POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
-application/atom+xml
-666 found
+Will list insert statements for catalog entries found that are executed on the database. Duplicate entries (with same ```reference```) will be dropped.
 
-docker run -it --rm -v`pwd`:/usr/src/app dias_numba_py python creodiasCARDMetaXfer2DB.py parcels_2021 2020-10-01 2022-01-01 CARD-COH6 c6
-POLYGON((8.10435443157384+54.5929343210099,8.02765204689278+57.7516361521132,15.5731994285472+57.5842750710105,15.0586134693368+54.4442190145486,8.10435443157384+54.5929343210099))
-application/atom+xml
-337 found
+Will list summary of all metadata entries for aoi.
 
+```
 ['card', 'sensor', 'count', 'min', 'max']
 ('bs', '1A', 320) 2020-10-02 05:32:37 2021-02-19 17:17:31
 ('bs', '1B', 346) 2020-10-01 05:40:09 2021-12-16 16:28:13
@@ -319,7 +359,7 @@ application/atom+xml
 ('s2', '2B', 3392) 2020-10-02 10:47:59 2021-12-30 10:33:39
 ```
 
-At the current stage, all Sentinel-2 L2A is available, but only a subset of Sentinel-1 CARD-BS and CARD-COH6, since no [specific order](#ordering-s1-card-data) have been made (the available scenes are "spill over" for other actions run on CREODIAS).
+Currently, all Sentinel-2 L2A is directly available in the CDSE catalog, but only a subset of Sentinel-1 CARD-BS and CARD-COH6, since no [specific order](#ordering-s1-card-data) have been made (the available scenes are "spill over" for other actions run on CDSE).
 
 
 ### Check which UTM projections are in the CARD data sets
@@ -354,12 +394,11 @@ Extraction code is on cbm/extraction. The directory data is needed for temporary
 ```bash
 cd cbm/extraction
 mkdir data
-# mkdir /1/DIAS
 ```
 
 ## Single runs
 
-Executables take their parameters from a runtime configuration file (db_config.json). Note that database tables need to specify the schema. The docker section defines the address of the swarm master.
+Executables take their parameters from a configuration file (db_config.json). Note that database tables need to specify the schema. The docker section defines the address of the swarm master.
 
 ```json
 {
@@ -479,7 +518,6 @@ A solution to the stack termination issue is to integrate stack deployment with 
 A drawback is the need to install some python modules on the VM:
 
 ```bash
-sudo cp /usr/bin/python3 /usr/bin/python
 sudo apt install python3-pip
 pip3 install psycopg2-binary
 pip3 install python_on_whales
@@ -542,7 +580,7 @@ drop table faulties;
 
 # Ordering S1 CARD data
 
-Contrary to Sentinel-2, DIAS does not store any (Copernicus) Application Ready Data for Sentinel-1. S1-CARD needs to be processed on demand. A DIAS user has two options: (1) using the [open source SNAP s1tbx](https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1) with the specific recipes to generate CARD-BS and CARD-COH6 from S1-GRD and S1-SLC, respectively or (2) order CARD-BS and CARD-COH6 directly from the Processing-as-a-Service (PaaS) offered by the DIAS.
+Contrary to Sentinel-2, CDSE does not store any (Copernicus) Application Ready Data for Sentinel-1. S1-CARD needs to be processed on demand. A CDSE user has two options: (1) using the [open source SNAP s1tbx](https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1) with the specific recipes to generate CARD-BS and CARD-COH6 from S1-GRD and S1-SLC, respectively or (2) order CARD-BS and CARD-COH6 directly from the Processing-as-a-Service (PaaS) offered by the CDSE.
 
 Although the first option provides more control, e.g. in the fine-tuning of s1tbx processing graphs, it requires significant compute resources and storage space. Option (2) is offered at a per-unit price, which includes the storage of the CARD output (for the duration of the project). The PaaS does the same as in option (1) but with flexible scaling of the compute resources.
 
