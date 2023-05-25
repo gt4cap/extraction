@@ -7,8 +7,12 @@
 -->
 
 Version 1.1, 15 February 2022
+
 Version 1.2, 25 February 2022 - Updated extraction section for status
+
 Version 1.3, 26 April 2022 - Minor updates
+
+Version 1.4, 25 May 2023 - Updates to reflect migration to CDSE (ongoing)
 
 ## Account set up
 An Onboarding Member State needs a DIAS account. For the account, a contact person (name, email, phone) has to be identified.
@@ -167,7 +171,7 @@ Upload the parcels polygons file to the database. This can be done from a remote
 Test with QGIS connection to database.
 
 ```bash
-ogr2ogr -f "PostgreSQL" PG:"host=185.52.195.114 port=11039 dbname=postgres user=postgres password=YOURPASSWORD" -nln parcels_2021 -a_srs EPSG:4326 -nlt PROMOTE_TO_MULTI example_2021_parcels.shp
+ogr2ogr -f "PostgreSQL" PG:"host=YOURIP port=YOURPORT dbname=postgres user=postgres password=YOURPASSWORD" -nln parcels_2021 -a_srs EPSG:4326 -nlt PROMOTE_TO_MULTI example_2021_parcels.shp
 ```
 
 ### Set up required tables
@@ -267,11 +271,11 @@ vi cat_config.json
 {
 	"database": {
 		"connection": {
-			"host": "172.17.0.2",
+			"host": "YOURIP",
 			"dbname": "postgres",
 			"dbuser": "postgres",
 			"dbpasswd": "YOURPASSWORD",
-			"port": 5432
+			"port": YOURPORT
 		},
 		"tables": {
 			"aoi_table": "aois",
@@ -361,11 +365,11 @@ Executables take their parameters from a runtime configuration file (db_config.j
 {
     "database": {
         "connection": {
-            "host": "185.52.195.114",
+            "host": "YOURIP",
             "dbname": "postgres",
             "dbuser": "postgres",
             "dbpasswd": "YOURPASSWORD",
-            "port": 11039
+            "port": YOURPORT
         },
         "tables": {
             "aoi_table": "public.aois",
