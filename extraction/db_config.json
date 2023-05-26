@@ -1,0 +1,27 @@
+{
+    "database": {
+        "connection": {
+            "host": "YOURIP",
+            "dbname": "postgres",
+            "dbuser": "postgres",
+            "dbpasswd": "YOURPASSWORD",
+            "port": YOURPORT 
+        },
+        "tables": {
+            "aoi_table": "public.aois",
+            "parcel_table": "public.dk2021",
+            "catalog_table": "public.dias_catalogue",
+            "sigs_table": "public.sigs",
+	    "hists_table": "public.hists"
+        },
+        "args": {
+            "aoi_field": "name",
+            "name": "dk2021",
+            "startdate": "2020-10-01",
+            "enddate": "2022-01-01"
+        }
+    },
+    "docker": {
+        "masterip": "192.168.0.8"
+    }
+}

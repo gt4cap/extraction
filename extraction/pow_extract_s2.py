@@ -30,11 +30,11 @@ endDate = dbconfig['args']['enddate']
 # Set up the swarm and deploy the stack
 docker.swarm.init(advertise_address=config['docker']['masterip'])
 
-selectSQL = f"""select count(*) from dias_catalogue, aois where card = '{card}' 
-      and obstime between '{startDate}' and '{endDate}' and 
+selectSQL = f"""select count(*) from dias_catalogue, aois where card = '{card}'
+      and obstime between '{startDate}' and '{endDate}' and
       footprint && wkb_geometry and name = '{aoi}'
       and status in ('ingested')"""
-    
+
 curs.execute(selectSQL)
 
 r = curs.fetchone()
@@ -51,24 +51,24 @@ while True:
 
     curs.execute(selectSQL)
     r = curs.fetchone()
-    
+
     if r[0] > 0:
         print(f"{r[0]} entries still to be processed")
     else:
-        break    
-        
+        break
+
 print("Stack scl finished")
 swarmpit_stack.remove()
 print("Stack scl removed")
 
 
 # Reset the extracted to ingested
-updateSQL = f"""update dias_catalogue set status = 'ingested' 
-      where id in (select id from dias_catalogue, aois where card = '{card}' 
-      and obstime between '{startDate}' and '{endDate}' and 
+updateSQL = f"""update dias_catalogue set status = 'ingested'
+      where id in (select id from dias_catalogue, aois where card = '{card}'
+      and obstime between '{startDate}' and '{endDate}' and
       footprint && wkb_geometry and name = '{aoi}'
       and status in ('extracted'))"""
-      
+
 try:
     curs.execute(updateSQL)
     conn.commit()
@@ -77,7 +77,7 @@ except Error as e:
     conn.rollback()
     conn.close()
     sys.exit(1)
-         
+
 curs.execute(selectSQL)
 
 r = curs.fetchone()
@@ -94,12 +94,12 @@ while True:
 
     curs.execute(selectSQL)
     r = curs.fetchone()
-    
+
     if r[0] > 0:
         print(f"{r[0]} entries to be processed")
     else:
-        break    
-        
+        break
+
 print("Stack s210 finished")
 swarmpit_stack.remove()
 print("Stack s210 removed")
@@ -113,7 +113,7 @@ except Error as e:
     conn.rollback()
     conn.close()
     sys.exit(1)
-    
+
 print("Deploying s220 stack")
 
 swarmpit_stack = docker.stack.deploy("s220", compose_files=["./docker-compose_s220.yml"])
@@ -124,18 +124,30 @@ while True:
 
     curs.execute(selectSQL)
     r = curs.fetchone()
-    
+
     if r[0] > 0:
         print(f"{r[0]} entries to be processed")
     else:
-        break    
-        
+        break
+
 print("Stack s220 finished")
 swarmpit_stack.remove()
 print("Stack s220 removed")
 docker.swarm.leave(force=True)
 print("Swarm left")
 
+# Set status the extracted to final to facilitate daily crontab runs
+updateSQL = f"""update dias_catalogue set status = 'final' 
+      where id in (select id from dias_catalogue, aois where card = '{card}'
+      and obstime between '{startDate}' and '{endDate}' and
+      footprint && wkb_geometry and name = '{aoi}'
+      and status in ('extracted'))"""
 
-
-
+try:
+    curs.execute(updateSQL)
+    conn.commit()
+except Error as e:
+    print("Update failed")
+    conn.rollback()
+    conn.close()
+    sys.exit(1)

@@ -1,0 +1,22 @@
+{
+	"database": {
+		"connection": {
+			"host": "YOURIP",
+			"dbname": "postgres",
+			"dbuser": "postgres",
+			"dbpasswd": "YOURPASSWORD",
+			"port": YOURPORT
+		},
+		"tables": {
+			"aoi_table": "aois",
+			"parcel_table": "parcels",
+			"results_table": "sigs_test"
+		},
+		"args": {
+			"aoi_field": "name",
+			"name": "dk",
+			"startdate": "2023-03-01",
+			"enddate": "2023-04-01"
+		}
+	}
+}
