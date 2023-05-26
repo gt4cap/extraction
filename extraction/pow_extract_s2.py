@@ -2,6 +2,9 @@ import sys
 import time
 import json
 
+# Revision 1.1: 2023-05-26. Added 'final' status at the end of the 3 runs
+# Force reprojection of the aois geometry to 4326
+
 from python_on_whales import docker
 import psycopg2
 
@@ -32,7 +35,7 @@ docker.swarm.init(advertise_address=config['docker']['masterip'])
 
 selectSQL = f"""select count(*) from dias_catalogue, aois where card = '{card}'
       and obstime between '{startDate}' and '{endDate}' and
-      footprint && wkb_geometry and name = '{aoi}'
+      footprint && st_transform(wkb_geometry, 4326) and name = '{aoi}'
       and status in ('ingested')"""
 
 curs.execute(selectSQL)
@@ -66,7 +69,7 @@ print("Stack scl removed")
 updateSQL = f"""update dias_catalogue set status = 'ingested'
       where id in (select id from dias_catalogue, aois where card = '{card}'
       and obstime between '{startDate}' and '{endDate}' and
-      footprint && wkb_geometry and name = '{aoi}'
+      footprint && st_transform(wkb_geometry, 4326) and name = '{aoi}'
       and status in ('extracted'))"""
 
 try:
@@ -137,10 +140,10 @@ docker.swarm.leave(force=True)
 print("Swarm left")
 
 # Set status the extracted to final to facilitate daily crontab runs
-updateSQL = f"""update dias_catalogue set status = 'final' 
+updateSQL = f"""update dias_catalogue set status = 'final'
       where id in (select id from dias_catalogue, aois where card = '{card}'
       and obstime between '{startDate}' and '{endDate}' and
-      footprint && wkb_geometry and name = '{aoi}'
+      footprint && st_transform(wkb_geometry, 4326) and name = '{aoi}'
       and status in ('extracted'))"""
 
 try:
